@@ -1,8 +1,5 @@
-/**
- * Anthropic API fetch helper.
- * Calls are made server-side or via a proxy to avoid exposing the API key.
- */
-export async function callClaude({ apiKey, model = 'claude-sonnet-4-6', messages, system }) {
+export async function callClaude({ apiKey: providedKey, model = 'claude-sonnet-4-6', messages, system }) {
+  const apiKey = providedKey ?? localStorage.getItem('stash_anthropic_key')
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
