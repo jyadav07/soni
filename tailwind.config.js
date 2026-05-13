@@ -13,6 +13,14 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       colors: {
+        stash: {
+          orange:     '#E8651A',
+          pink:       '#E8608A',
+          chartreuse: '#C5D93A',
+          silver:     '#C0C0C0',
+          black:      '#1A1A1A',
+          white:      '#FFFFFF',
+        },
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {

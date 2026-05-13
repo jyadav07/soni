@@ -33,10 +33,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-// ── Brand palette ──────────────────────────────────────────────────────────────
-const ORANGE = '#E8651A'
-const PINK = '#E8608A'
+// ── Brand colors (inline where Tailwind custom token unavailable in JSX) ───────
+const ORANGE     = '#E8651A'
+const PINK       = '#E8608A'
 const CHARTREUSE = '#C5D93A'
+const SILVER     = '#C0C0C0'
+const BLACK      = '#1A1A1A'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function getVoterId() {
@@ -63,17 +65,17 @@ async function fetchOgImage(url) {
   }
 }
 
-// ── Shared sub-components ──────────────────────────────────────────────────────
+// ── Sub-components ─────────────────────────────────────────────────────────────
 function LoadingState() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
       <div className="w-full max-w-sm space-y-4">
-        <div className="aspect-square w-full animate-pulse rounded-3xl bg-gray-100" />
-        <div className="h-8 w-3/4 animate-pulse rounded-xl bg-gray-100" />
-        <div className="h-4 w-full animate-pulse rounded-lg bg-gray-100" />
+        <div className="aspect-square w-full animate-pulse bg-gray-100" />
+        <div className="h-8 w-3/4 animate-pulse rounded bg-gray-100" />
+        <div className="h-4 w-full animate-pulse rounded bg-gray-100" />
         <div className="mt-6 flex gap-3">
-          <div className="h-16 flex-1 animate-pulse rounded-2xl bg-gray-100" />
-          <div className="h-16 flex-1 animate-pulse rounded-2xl bg-gray-100" />
+          <div className="h-16 flex-1 animate-pulse rounded bg-gray-100" />
+          <div className="h-16 flex-1 animate-pulse rounded bg-gray-100" />
         </div>
       </div>
     </div>
@@ -83,13 +85,12 @@ function LoadingState() {
 function NotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-6 text-center">
-      <p className="text-6xl">🤷‍♀️</p>
-      <h1 className="text-2xl font-extrabold text-gray-900">Link not found</h1>
-      <p className="text-gray-400">This wishlist item may have been removed.</p>
+      <h1 className="text-2xl font-extrabold text-stash-black">Link not found</h1>
+      <p className="text-sm" style={{ color: SILVER }}>This wishlist item may have been removed.</p>
       <Link
         to="/"
-        className="mt-2 rounded-full px-6 py-2.5 text-sm font-bold text-white"
-        style={{ background: PINK }}
+        className="mt-2 rounded px-6 py-2.5 text-sm font-bold uppercase tracking-wider text-white"
+        style={{ background: ORANGE }}
       >
         Go to Stash
       </Link>
@@ -98,27 +99,27 @@ function NotFound() {
 }
 
 function VoteTally({ votes, voted }) {
-  const total = votes.yes + votes.no
+  const total      = votes.yes + votes.no
   const yesPercent = total > 0 ? Math.round((votes.yes / total) * 100) : 50
 
   return (
     <div className="mt-5 space-y-3">
-      <p className="text-center text-xs font-bold uppercase tracking-widest text-gray-400">
-        {total} {total === 1 ? 'vote' : 'votes'} so far
+      <p className="text-center text-xs font-bold uppercase tracking-widest" style={{ color: SILVER }}>
+        {total} {total === 1 ? 'vote' : 'votes'}
       </p>
-      <div className="flex h-3 overflow-hidden rounded-full bg-gray-100">
+      <div className="flex h-2 overflow-hidden rounded-full" style={{ background: '#f0f0f0' }}>
         <div
-          className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${yesPercent}%`, background: PINK }}
+          className="h-full transition-all duration-700"
+          style={{ width: `${yesPercent}%`, background: ORANGE }}
         />
       </div>
       <div className="flex justify-between text-sm font-bold">
-        <span style={{ color: PINK }}>♥ {votes.yes} yes</span>
-        <span style={{ color: '#6a7a00' }}>✕ {votes.no} no</span>
+        <span style={{ color: ORANGE }}>♥ {votes.yes} yes</span>
+        <span style={{ color: '#6a7a00' }}>{votes.no} no</span>
       </div>
       {voted !== null && (
-        <p className="text-center text-xs text-gray-400">
-          You voted <strong>{voted ? 'YES ♥' : 'NO'}</strong>
+        <p className="text-center text-xs" style={{ color: SILVER }}>
+          You voted <strong>{voted ? 'YES' : 'NO'}</strong>
         </p>
       )}
     </div>
@@ -126,11 +127,10 @@ function VoteTally({ votes, voted }) {
 }
 
 // ── Try-on photo components ────────────────────────────────────────────────────
-
 function PhotoVoteButtons({ photoId, voterId }) {
-  const key = `stash_photo_vote_${photoId}`
+  const key            = `stash_photo_vote_${photoId}`
   const [votes, setVotes]   = useState({ yes: 0, no: 0 })
-  const [voted, setVoted]   = useState(null)   // true | false | null
+  const [voted, setVoted]   = useState(null)
   const [voting, setVoting] = useState(false)
 
   useEffect(() => {
@@ -170,44 +170,42 @@ function PhotoVoteButtons({ photoId, voterId }) {
   }
 
   const hasVoted = voted !== null
-  const total = votes.yes + votes.no
+  const total    = votes.yes + votes.no
 
   return (
     <div className="mt-2 space-y-2">
       <div className="flex gap-2">
-        {/* YES */}
         <button
           onClick={() => handleVote(true)}
           disabled={hasVoted || voting}
-          className="flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold transition-all active:scale-95 disabled:cursor-default"
+          className="flex flex-1 items-center justify-center gap-1 rounded py-2 text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-80 disabled:cursor-default"
           style={{
-            background: hasVoted ? (voted === true ? PINK : '#f3f4f6') : PINK,
-            color:      hasVoted ? (voted === true ? '#fff' : '#9ca3af') : '#fff',
+            background: hasVoted ? (voted === true ? ORANGE : '#e5e5e5') : ORANGE,
+            color:      hasVoted ? (voted === true ? '#fff'  : SILVER)   : '#fff',
           }}
         >
           ♥ {votes.yes}
         </button>
-        {/* NO */}
         <button
           onClick={() => handleVote(false)}
           disabled={hasVoted || voting}
-          className="flex flex-1 items-center justify-center gap-1 rounded-xl border-2 py-2 text-xs font-bold transition-all active:scale-95 disabled:cursor-default"
+          className="flex flex-1 items-center justify-center gap-1 rounded border py-2 text-xs font-bold uppercase tracking-wider transition-opacity hover:opacity-80 disabled:cursor-default"
           style={{
-            borderColor: hasVoted ? (voted === false ? CHARTREUSE : '#e5e7eb') : CHARTREUSE,
-            background:  hasVoted ? (voted === false ? CHARTREUSE : '#fff')    : '#fff',
-            color:       hasVoted ? (voted === false ? '#3a4a00' : '#9ca3af')  : '#3a4a00',
+            borderColor: hasVoted ? (voted === false ? CHARTREUSE : SILVER) : CHARTREUSE,
+            background:  hasVoted ? (voted === false ? CHARTREUSE : '#fff') : CHARTREUSE,
+            color:       hasVoted ? (voted === false ? BLACK      : SILVER)  : BLACK,
           }}
         >
-          ✕ {votes.no}
+          {votes.no}
         </button>
       </div>
       {total > 0 && (
-        <div className="flex h-1.5 overflow-hidden rounded-full bg-gray-100">
+        <div className="flex h-1 overflow-hidden rounded-full" style={{ background: '#f0f0f0' }}>
           <div
             className="transition-all duration-500"
             style={{
               width: `${total > 0 ? Math.round((votes.yes / total) * 100) : 50}%`,
-              background: PINK,
+              background: ORANGE,
             }}
           />
         </div>
@@ -218,7 +216,7 @@ function PhotoVoteButtons({ photoId, voterId }) {
 
 function PhotoCard({ photo, voterId }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+    <div className="overflow-hidden rounded border bg-white" style={{ borderColor: SILVER }}>
       <div className="aspect-square w-full overflow-hidden bg-gray-50">
         <img
           src={photo.photo_url}
@@ -234,15 +232,13 @@ function PhotoCard({ photo, voterId }) {
 }
 
 function TryOnSection({ itemId, voterId }) {
-  const [photos, setPhotos]     = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [uploading, setUploading] = useState(false)
+  const [photos, setPhotos]         = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [uploading, setUploading]   = useState(false)
   const [uploadError, setUploadError] = useState(null)
-  const fileInputRef = useRef(null)
+  const fileInputRef                = useRef(null)
 
-  useEffect(() => {
-    loadPhotos()
-  }, [itemId])
+  useEffect(() => { loadPhotos() }, [itemId])
 
   async function loadPhotos() {
     const { data } = await supabase
@@ -257,9 +253,7 @@ function TryOnSection({ itemId, voterId }) {
   async function handleFileChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
-    // Reset input so the same file can be re-selected if needed
     e.target.value = ''
-
     setUploading(true)
     setUploadError(null)
 
@@ -291,33 +285,22 @@ function TryOnSection({ itemId, voterId }) {
     } else if (photo) {
       setPhotos(prev => [photo, ...prev])
     }
-
     setUploading(false)
   }
 
   return (
     <div className="px-5">
-      {/* Section header */}
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
+        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: SILVER }}>
           Try-on photos
         </p>
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-80 disabled:opacity-50"
-          style={{ background: ORANGE }}
+          className="rounded border px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-opacity hover:opacity-70 disabled:opacity-40"
+          style={{ borderColor: PINK, color: PINK, background: 'transparent' }}
         >
-          {uploading ? (
-            <>
-              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Uploading…
-            </>
-          ) : (
-            <>
-              <span>📸</span> Add a try-on photo
-            </>
-          )}
+          {uploading ? 'Uploading…' : 'Add photo'}
         </button>
         <input
           ref={fileInputRef}
@@ -329,25 +312,24 @@ function TryOnSection({ itemId, voterId }) {
       </div>
 
       {uploadError && (
-        <p className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-500">
-          ⚠️ {uploadError}
+        <p className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-500">
+          {uploadError}
         </p>
       )}
 
       {loading ? (
         <div className="grid grid-cols-2 gap-3">
           {[0, 1].map(i => (
-            <div key={i} className="aspect-square animate-pulse rounded-2xl bg-gray-100" />
+            <div key={i} className="aspect-square animate-pulse bg-gray-100" />
           ))}
         </div>
       ) : photos.length === 0 ? (
         <div
-          className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-10 text-center"
-          style={{ borderColor: '#f0d0d8' }}
+          className="flex flex-col items-center justify-center gap-2 rounded border border-dashed py-10 text-center"
+          style={{ borderColor: SILVER }}
         >
-          <span className="text-3xl">👗</span>
-          <p className="text-sm font-semibold text-gray-400">No try-ons yet</p>
-          <p className="text-xs text-gray-300">Be the first to upload one!</p>
+          <p className="text-sm font-semibold" style={{ color: SILVER }}>No try-ons yet</p>
+          <p className="text-xs" style={{ color: SILVER }}>Be the first to upload one</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
@@ -363,14 +345,14 @@ function TryOnSection({ itemId, voterId }) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function SharePage() {
   const { slug } = useParams()
-  const [item, setItem]         = useState(null)
-  const [ogImage, setOgImage]   = useState(null)
+  const [item, setItem]           = useState(null)
+  const [ogImage, setOgImage]     = useState(null)
   const [ogLoading, setOgLoading] = useState(true)
-  const [votes, setVotes]       = useState({ yes: 0, no: 0 })
-  const [voted, setVoted]       = useState(null)
-  const [voting, setVoting]     = useState(false)
-  const [loading, setLoading]   = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  const [votes, setVotes]         = useState({ yes: 0, no: 0 })
+  const [voted, setVoted]         = useState(null)
+  const [voting, setVoting]       = useState(false)
+  const [loading, setLoading]     = useState(true)
+  const [notFound, setNotFound]   = useState(false)
 
   const voterId = getVoterId()
 
@@ -459,35 +441,40 @@ export default function SharePage() {
           ) : ogImage ? (
             <img src={ogImage} alt={item.item_name} className="h-full w-full object-cover" />
           ) : (
-            <div
-              className="flex h-full w-full flex-col items-center justify-center"
-              style={{ background: 'linear-gradient(135deg,#fff0f5 0%,#fff8e0 100%)' }}
-            >
-              <span className="text-7xl">🛍️</span>
+            <div className="flex h-full w-full items-center justify-center bg-gray-50">
+              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: SILVER }}>
+                No image
+              </span>
             </div>
           )}
-          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
+
+          {/* Wishlist badge */}
           <div className="absolute left-4 top-4">
             <span
-              className="rounded-full px-3 py-1 text-xs font-bold text-white"
-              style={{ background: ORANGE }}
+              className="rounded px-3 py-1 text-xs font-bold uppercase tracking-wider text-white"
+              style={{ background: PINK }}
             >
-              🛍️ wishlist
+              Wishlist
             </span>
           </div>
         </div>
 
         {/* ── Item details ────────────────────────────────────────────────── */}
-        <div className="px-5 pt-2">
+        <div className="px-5 pt-3">
           <h1
-            className="text-4xl leading-tight text-gray-900"
-            style={{ fontFamily: "'DM Serif Display', serif" }}
+            className="text-4xl leading-tight"
+            style={{ fontFamily: "'DM Serif Display', serif", color: BLACK }}
           >
             {item.item_name}
           </h1>
+
           {item.caption && (
-            <p className="mt-3 text-base leading-relaxed text-gray-500">"{item.caption}"</p>
+            <p className="mt-3 text-base leading-relaxed" style={{ color: `${BLACK}99` }}>
+              "{item.caption}"
+            </p>
           )}
+
           <a
             href={item.item_url}
             target="_blank"
@@ -496,74 +483,74 @@ export default function SharePage() {
             style={{ color: ORANGE }}
           >
             View on store
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M7 17L17 7M7 7h10v10" />
             </svg>
           </a>
         </div>
 
         {/* ── Divider ─────────────────────────────────────────────────────── */}
-        <div className="mx-5 my-6 h-px bg-gray-100" />
+        <div className="mx-5 my-6 h-px" style={{ background: SILVER }} />
 
-        {/* ── Item vote section ───────────────────────────────────────────── */}
+        {/* ── Vote section ────────────────────────────────────────────────── */}
         <div className="px-5">
-          <p className="mb-4 text-center text-xs font-bold uppercase tracking-widest text-gray-400">
+          <p className="mb-4 text-center text-xs font-bold uppercase tracking-widest" style={{ color: SILVER }}>
             Should they get it?
           </p>
+
           <div className="flex gap-3">
+            {/* YES — orange with heart symbol */}
             <button
               onClick={() => handleVote(true)}
               disabled={hasVoted || voting}
-              className="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-5 text-center font-bold transition-all active:scale-95 disabled:cursor-default"
+              className="flex flex-1 flex-col items-center justify-center gap-1 rounded py-5 text-center font-bold uppercase tracking-wider transition-opacity active:scale-95 disabled:cursor-default hover:opacity-80"
               style={{
-                background:  hasVoted ? (voted === true  ? PINK        : '#f3f4f6') : PINK,
-                color:       hasVoted ? (voted === true  ? '#fff'      : '#9ca3af') : '#fff',
-                boxShadow:  !hasVoted ? `0 8px 24px ${PINK}55` : 'none',
+                background: hasVoted ? (voted === true  ? ORANGE    : '#f3f4f6') : ORANGE,
+                color:      hasVoted ? (voted === true  ? '#fff'    : SILVER)    : '#fff',
               }}
             >
-              <span className="text-2xl">{voted === true ? '✅' : '♥'}</span>
-              <span className="text-sm">YES</span>
+              <span className="text-xl">♥</span>
+              <span className="text-xs">Yes</span>
             </button>
+
+            {/* NO — chartreuse */}
             <button
               onClick={() => handleVote(false)}
               disabled={hasVoted || voting}
-              className="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl border-2 py-5 text-center font-bold transition-all active:scale-95 disabled:cursor-default"
+              className="flex flex-1 flex-col items-center justify-center gap-1 rounded border-2 py-5 text-center font-bold uppercase tracking-wider transition-opacity active:scale-95 disabled:cursor-default hover:opacity-80"
               style={{
-                borderColor: hasVoted ? (voted === false ? CHARTREUSE   : '#e5e7eb') : CHARTREUSE,
-                background:  hasVoted ? (voted === false ? CHARTREUSE   : '#fff')    : '#fff',
-                color:       hasVoted ? (voted === false ? '#3a4a00'    : '#9ca3af') : '#3a4a00',
-                boxShadow:  !hasVoted ? `0 8px 24px ${CHARTREUSE}88`  : 'none',
+                borderColor: hasVoted ? (voted === false ? CHARTREUSE : SILVER)     : CHARTREUSE,
+                background:  hasVoted ? (voted === false ? CHARTREUSE : '#fff')     : CHARTREUSE,
+                color:       hasVoted ? (voted === false ? BLACK      : SILVER)     : BLACK,
               }}
             >
-              <span className="text-2xl">{voted === false ? '✅' : '✕'}</span>
-              <span className="text-sm">NO</span>
+              <span className="text-xl">—</span>
+              <span className="text-xs">No</span>
             </button>
           </div>
+
           {showTally && <VoteTally votes={votes} voted={voted} />}
           {!hasVoted && !showTally && (
-            <p className="mt-4 text-center text-xs text-gray-300">Be the first to vote ✨</p>
+            <p className="mt-4 text-center text-xs" style={{ color: SILVER }}>
+              Be the first to vote
+            </p>
           )}
         </div>
 
         {/* ── Divider ─────────────────────────────────────────────────────── */}
-        <div className="mx-5 my-6 h-px bg-gray-100" />
+        <div className="mx-5 my-6 h-px" style={{ background: SILVER }} />
 
         {/* ── Try-on photos ───────────────────────────────────────────────── */}
         <TryOnSection itemId={item.id} voterId={voterId} />
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
-        <div className="mt-12 flex items-center justify-center gap-1.5">
+        <div className="mt-12 flex items-center justify-center">
           <Link
             to="/"
-            className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 transition-opacity hover:opacity-70"
+            className="text-xs font-bold uppercase tracking-widest transition-opacity hover:opacity-60"
+            style={{ color: SILVER }}
           >
-            <span
-              className="inline-block rounded-full px-2 py-0.5 text-white"
-              style={{ background: PINK, fontSize: '10px' }}
-            >
-              🎀 Stash
-            </span>
-            <span>Make your own wishlist →</span>
+            Make your own — Stash
           </Link>
         </div>
 
