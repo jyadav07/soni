@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,33 +6,27 @@
 
 @layer base {
   :root {
-    /* Stash palette — warm amber / treasure-gold */
-    --stash-amber: 35 100% 52%;
-    --stash-amber-light: 43 96% 56%;
-    --stash-gold: 45 93% 47%;
-    --stash-cream: 40 33% 97%;
-    --stash-ink: 220 30% 12%;
-
-    --background: 40 33% 97%;
-    --foreground: 220 30% 12%;
+    /* Stash palette — rose / blush / fuchsia */
+    --background: 340 60% 98%;
+    --foreground: 340 25% 15%;
     --card: 0 0% 100%;
-    --card-foreground: 220 30% 12%;
+    --card-foreground: 340 25% 15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 12%;
-    --primary: 35 100% 52%;
+    --popover-foreground: 340 25% 15%;
+    --primary: 343 87% 58%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 40 20% 92%;
-    --secondary-foreground: 220 30% 12%;
-    --muted: 40 20% 92%;
-    --muted-foreground: 220 10% 46%;
-    --accent: 43 96% 56%;
-    --accent-foreground: 220 30% 12%;
+    --secondary: 340 40% 94%;
+    --secondary-foreground: 340 25% 15%;
+    --muted: 340 30% 94%;
+    --muted-foreground: 340 15% 50%;
+    --accent: 292 84% 61%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    --border: 35 20% 86%;
-    --input: 35 20% 86%;
-    --ring: 35 100% 52%;
-    --radius: 0.75rem;
+    --border: 340 40% 88%;
+    --input: 340 40% 88%;
+    --ring: 343 87% 58%;
+    --radius: 1rem;
   }
 
   .dark {
