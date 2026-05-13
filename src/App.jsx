@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Layout from './components/Layout'
 import Home from './pages/Home'
-import Create from './pages/Create'
+import CreateItem from './pages/CreateItem'
 import Share from './pages/Share'
 import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
@@ -8,13 +9,15 @@ import Settings from './pages/Settings'
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/create" element={<Create />} />
-        <Route path="/s/:slug" element={<Share />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/settings" element={<Settings />} />
-      </Routes>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/create" element={<CreateItem />} />
+          <Route path="/s/:slug" element={<Share />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+      </Layout>
     </BrowserRouter>
   )
 }
