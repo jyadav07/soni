@@ -1,4 +1,35 @@
-import { useEffect, useState } from 'react'
+/*
+ * SUPABASE STORAGE SETUP
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Before try-on photo uploads will work, create the storage bucket manually:
+ *
+ *  1. Go to your Supabase project → Storage → New bucket
+ *  2. Name it exactly: tryon-photos
+ *  3. Check "Public bucket" so uploaded images are publicly readable
+ *  4. Leave the file size limit at the default (or set to 5 MB)
+ *  5. Click "Create bucket"
+ *
+ * Required tables (run in SQL editor):
+ *
+ *  create table tryon_photos (
+ *    id          uuid primary key default gen_random_uuid(),
+ *    item_id     uuid references items(id) on delete cascade,
+ *    user_id     uuid,
+ *    photo_url   text not null,
+ *    created_at  timestamptz default now()
+ *  );
+ *
+ *  create table photo_votes (
+ *    id          uuid primary key default gen_random_uuid(),
+ *    photo_id    uuid references tryon_photos(id) on delete cascade,
+ *    vote        boolean not null,
+ *    voter_id    text not null,
+ *    created_at  timestamptz default now()
+ *  );
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+import { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -6,7 +37,6 @@ import { supabase } from '../lib/supabase'
 const ORANGE = '#E8651A'
 const PINK = '#E8608A'
 const CHARTREUSE = '#C5D93A'
-const SILVER_GRADIENT = 'linear-gradient(135deg,#d4d4d4 0%,#f0f0f0 30%,#b0b0b0 50%,#e8e8e8 70%,#d0d0d0 100%)'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function getVoterId() {
@@ -33,7 +63,7 @@ async function fetchOgImage(url) {
   }
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
+// ── Shared sub-components ──────────────────────────────────────────────────────
 function LoadingState() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
@@ -41,7 +71,6 @@ function LoadingState() {
         <div className="aspect-square w-full animate-pulse rounded-3xl bg-gray-100" />
         <div className="h-8 w-3/4 animate-pulse rounded-xl bg-gray-100" />
         <div className="h-4 w-full animate-pulse rounded-lg bg-gray-100" />
-        <div className="h-4 w-2/3 animate-pulse rounded-lg bg-gray-100" />
         <div className="mt-6 flex gap-3">
           <div className="h-16 flex-1 animate-pulse rounded-2xl bg-gray-100" />
           <div className="h-16 flex-1 animate-pulse rounded-2xl bg-gray-100" />
@@ -77,22 +106,16 @@ function VoteTally({ votes, voted }) {
       <p className="text-center text-xs font-bold uppercase tracking-widest text-gray-400">
         {total} {total === 1 ? 'vote' : 'votes'} so far
       </p>
-
-      {/* Bar */}
       <div className="flex h-3 overflow-hidden rounded-full bg-gray-100">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{ width: `${yesPercent}%`, background: PINK }}
         />
       </div>
-
       <div className="flex justify-between text-sm font-bold">
         <span style={{ color: PINK }}>♥ {votes.yes} yes</span>
-        <span style={{ color: CHARTREUSE === '#C5D93A' ? '#8a9a1a' : CHARTREUSE }}>
-          ✕ {votes.no} no
-        </span>
+        <span style={{ color: '#6a7a00' }}>✕ {votes.no} no</span>
       </div>
-
       {voted !== null && (
         <p className="text-center text-xs text-gray-400">
           You voted <strong>{voted ? 'YES ♥' : 'NO'}</strong>
@@ -102,16 +125,251 @@ function VoteTally({ votes, voted }) {
   )
 }
 
+// ── Try-on photo components ────────────────────────────────────────────────────
+
+function PhotoVoteButtons({ photoId, voterId }) {
+  const key = `stash_photo_vote_${photoId}`
+  const [votes, setVotes]   = useState({ yes: 0, no: 0 })
+  const [voted, setVoted]   = useState(null)   // true | false | null
+  const [voting, setVoting] = useState(false)
+
+  useEffect(() => {
+    loadVotes()
+    const prior = localStorage.getItem(key)
+    if (prior !== null) setVoted(prior === 'true')
+  }, [photoId])
+
+  async function loadVotes() {
+    const { data } = await supabase
+      .from('photo_votes')
+      .select('vote')
+      .eq('photo_id', photoId)
+    if (data) {
+      setVotes({
+        yes: data.filter(v => v.vote === true).length,
+        no:  data.filter(v => v.vote === false).length,
+      })
+    }
+  }
+
+  async function handleVote(voteValue) {
+    if (voted !== null || voting) return
+    setVoting(true)
+    const { error } = await supabase
+      .from('photo_votes')
+      .insert({ photo_id: photoId, vote: voteValue, voter_id: voterId })
+    if (!error) {
+      localStorage.setItem(key, String(voteValue))
+      setVoted(voteValue)
+      setVotes(v => ({
+        yes: voteValue === true  ? v.yes + 1 : v.yes,
+        no:  voteValue === false ? v.no  + 1 : v.no,
+      }))
+    }
+    setVoting(false)
+  }
+
+  const hasVoted = voted !== null
+  const total = votes.yes + votes.no
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex gap-2">
+        {/* YES */}
+        <button
+          onClick={() => handleVote(true)}
+          disabled={hasVoted || voting}
+          className="flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold transition-all active:scale-95 disabled:cursor-default"
+          style={{
+            background: hasVoted ? (voted === true ? PINK : '#f3f4f6') : PINK,
+            color:      hasVoted ? (voted === true ? '#fff' : '#9ca3af') : '#fff',
+          }}
+        >
+          ♥ {votes.yes}
+        </button>
+        {/* NO */}
+        <button
+          onClick={() => handleVote(false)}
+          disabled={hasVoted || voting}
+          className="flex flex-1 items-center justify-center gap-1 rounded-xl border-2 py-2 text-xs font-bold transition-all active:scale-95 disabled:cursor-default"
+          style={{
+            borderColor: hasVoted ? (voted === false ? CHARTREUSE : '#e5e7eb') : CHARTREUSE,
+            background:  hasVoted ? (voted === false ? CHARTREUSE : '#fff')    : '#fff',
+            color:       hasVoted ? (voted === false ? '#3a4a00' : '#9ca3af')  : '#3a4a00',
+          }}
+        >
+          ✕ {votes.no}
+        </button>
+      </div>
+      {total > 0 && (
+        <div className="flex h-1.5 overflow-hidden rounded-full bg-gray-100">
+          <div
+            className="transition-all duration-500"
+            style={{
+              width: `${total > 0 ? Math.round((votes.yes / total) * 100) : 50}%`,
+              background: PINK,
+            }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PhotoCard({ photo, voterId }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+      <div className="aspect-square w-full overflow-hidden bg-gray-50">
+        <img
+          src={photo.photo_url}
+          alt="Try-on photo"
+          className="h-full w-full object-cover"
+        />
+      </div>
+      <div className="p-2">
+        <PhotoVoteButtons photoId={photo.id} voterId={voterId} />
+      </div>
+    </div>
+  )
+}
+
+function TryOnSection({ itemId, voterId }) {
+  const [photos, setPhotos]     = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
+  const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    loadPhotos()
+  }, [itemId])
+
+  async function loadPhotos() {
+    const { data } = await supabase
+      .from('tryon_photos')
+      .select('*')
+      .eq('item_id', itemId)
+      .order('created_at', { ascending: false })
+    if (data) setPhotos(data)
+    setLoading(false)
+  }
+
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // Reset input so the same file can be re-selected if needed
+    e.target.value = ''
+
+    setUploading(true)
+    setUploadError(null)
+
+    const ext  = file.name.split('.').pop().toLowerCase()
+    const path = `${itemId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+    const { error: storageError } = await supabase.storage
+      .from('tryon-photos')
+      .upload(path, file, { cacheControl: '3600', upsert: false })
+
+    if (storageError) {
+      setUploadError(storageError.message)
+      setUploading(false)
+      return
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('tryon-photos')
+      .getPublicUrl(path)
+
+    const { data: photo, error: dbError } = await supabase
+      .from('tryon_photos')
+      .insert({ item_id: itemId, photo_url: publicUrl, user_id: null })
+      .select()
+      .single()
+
+    if (dbError) {
+      setUploadError(dbError.message)
+    } else if (photo) {
+      setPhotos(prev => [photo, ...prev])
+    }
+
+    setUploading(false)
+  }
+
+  return (
+    <div className="px-5">
+      {/* Section header */}
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
+          Try-on photos
+        </p>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-80 disabled:opacity-50"
+          style={{ background: ORANGE }}
+        >
+          {uploading ? (
+            <>
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              Uploading…
+            </>
+          ) : (
+            <>
+              <span>📸</span> Add a try-on photo
+            </>
+          )}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+      </div>
+
+      {uploadError && (
+        <p className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-500">
+          ⚠️ {uploadError}
+        </p>
+      )}
+
+      {loading ? (
+        <div className="grid grid-cols-2 gap-3">
+          {[0, 1].map(i => (
+            <div key={i} className="aspect-square animate-pulse rounded-2xl bg-gray-100" />
+          ))}
+        </div>
+      ) : photos.length === 0 ? (
+        <div
+          className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-10 text-center"
+          style={{ borderColor: '#f0d0d8' }}
+        >
+          <span className="text-3xl">👗</span>
+          <p className="text-sm font-semibold text-gray-400">No try-ons yet</p>
+          <p className="text-xs text-gray-300">Be the first to upload one!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {photos.map(photo => (
+            <PhotoCard key={photo.id} photo={photo} voterId={voterId} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function SharePage() {
   const { slug } = useParams()
-  const [item, setItem] = useState(null)
-  const [ogImage, setOgImage] = useState(null)
+  const [item, setItem]         = useState(null)
+  const [ogImage, setOgImage]   = useState(null)
   const [ogLoading, setOgLoading] = useState(true)
-  const [votes, setVotes] = useState({ yes: 0, no: 0 })
-  const [voted, setVoted] = useState(null)
-  const [voting, setVoting] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [votes, setVotes]       = useState({ yes: 0, no: 0 })
+  const [voted, setVoted]       = useState(null)
+  const [voting, setVoting]     = useState(false)
+  const [loading, setLoading]   = useState(true)
   const [notFound, setNotFound] = useState(false)
 
   const voterId = getVoterId()
@@ -137,23 +395,19 @@ export default function SharePage() {
     setItem(data)
     setLoading(false)
 
-    // Increment view count (best-effort, no await)
     supabase
       .from('items')
       .update({ view_count: (data.view_count ?? 0) + 1 })
       .eq('id', data.id)
       .then(() => {})
 
-    // Fetch OG image in parallel
     fetchOgImage(data.item_url).then(img => {
       setOgImage(img)
       setOgLoading(false)
     })
 
-    // Load votes
     await loadVotes(data.id)
 
-    // Check prior vote
     const prior = localStorage.getItem(`stash_vote_${data.id}`)
     if (prior !== null) setVoted(prior === 'true')
   }
@@ -163,11 +417,10 @@ export default function SharePage() {
       .from('votes')
       .select('vote')
       .eq('item_id', itemId)
-
     if (data) {
       setVotes({
         yes: data.filter(v => v.vote === true).length,
-        no: data.filter(v => v.vote === false).length,
+        no:  data.filter(v => v.vote === false).length,
       })
     }
   }
@@ -175,17 +428,15 @@ export default function SharePage() {
   async function handleVote(voteValue) {
     if (voted !== null || voting || !supabase || !item) return
     setVoting(true)
-
     const { error } = await supabase
       .from('votes')
       .insert({ item_id: item.id, vote: voteValue, voter_id: voterId })
-
     if (!error) {
       localStorage.setItem(`stash_vote_${item.id}`, String(voteValue))
       setVoted(voteValue)
       setVotes(v => ({
-        yes: voteValue === true ? v.yes + 1 : v.yes,
-        no: voteValue === false ? v.no + 1 : v.no,
+        yes: voteValue === true  ? v.yes + 1 : v.yes,
+        no:  voteValue === false ? v.no  + 1 : v.no,
       }))
     }
     setVoting(false)
@@ -194,7 +445,7 @@ export default function SharePage() {
   if (loading) return <LoadingState />
   if (notFound || !item) return <NotFound />
 
-  const hasVoted = voted !== null
+  const hasVoted  = voted !== null
   const showTally = hasVoted || (votes.yes + votes.no) > 0
 
   return (
@@ -206,23 +457,16 @@ export default function SharePage() {
           {ogLoading ? (
             <div className="h-full w-full animate-pulse bg-gray-100" />
           ) : ogImage ? (
-            <img
-              src={ogImage}
-              alt={item.item_name}
-              className="h-full w-full object-cover"
-            />
+            <img src={ogImage} alt={item.item_name} className="h-full w-full object-cover" />
           ) : (
-            /* Fallback placeholder */
-            <div className="flex h-full w-full flex-col items-center justify-center gap-3"
-              style={{ background: 'linear-gradient(135deg,#fff0f5 0%,#fff8e0 100%)' }}>
+            <div
+              className="flex h-full w-full flex-col items-center justify-center"
+              style={{ background: 'linear-gradient(135deg,#fff0f5 0%,#fff8e0 100%)' }}
+            >
               <span className="text-7xl">🛍️</span>
             </div>
           )}
-
-          {/* Gradient scrim */}
           <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white to-transparent" />
-
-          {/* Floating badge */}
           <div className="absolute left-4 top-4">
             <span
               className="rounded-full px-3 py-1 text-xs font-bold text-white"
@@ -241,13 +485,9 @@ export default function SharePage() {
           >
             {item.item_name}
           </h1>
-
           {item.caption && (
-            <p className="mt-3 text-base leading-relaxed text-gray-500">
-              "{item.caption}"
-            </p>
+            <p className="mt-3 text-base leading-relaxed text-gray-500">"{item.caption}"</p>
           )}
-
           <a
             href={item.item_url}
             target="_blank"
@@ -257,7 +497,7 @@ export default function SharePage() {
           >
             View on store
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 17L17 7M7 7h10v10"/>
+              <path d="M7 17L17 7M7 7h10v10" />
             </svg>
           </a>
         </div>
@@ -265,68 +505,51 @@ export default function SharePage() {
         {/* ── Divider ─────────────────────────────────────────────────────── */}
         <div className="mx-5 my-6 h-px bg-gray-100" />
 
-        {/* ── Vote section ────────────────────────────────────────────────── */}
+        {/* ── Item vote section ───────────────────────────────────────────── */}
         <div className="px-5">
           <p className="mb-4 text-center text-xs font-bold uppercase tracking-widest text-gray-400">
             Should they get it?
           </p>
-
           <div className="flex gap-3">
-            {/* YES */}
             <button
               onClick={() => handleVote(true)}
               disabled={hasVoted || voting}
               className="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-5 text-center font-bold transition-all active:scale-95 disabled:cursor-default"
               style={{
-                background: hasVoted
-                  ? voted === true
-                    ? PINK
-                    : '#f3f4f6'
-                  : PINK,
-                color: hasVoted
-                  ? voted === true
-                    ? '#fff'
-                    : '#9ca3af'
-                  : '#fff',
-                boxShadow: !hasVoted ? `0 8px 24px ${PINK}55` : 'none',
-                transform: !hasVoted ? undefined : 'none',
+                background:  hasVoted ? (voted === true  ? PINK        : '#f3f4f6') : PINK,
+                color:       hasVoted ? (voted === true  ? '#fff'      : '#9ca3af') : '#fff',
+                boxShadow:  !hasVoted ? `0 8px 24px ${PINK}55` : 'none',
               }}
             >
               <span className="text-2xl">{voted === true ? '✅' : '♥'}</span>
               <span className="text-sm">YES</span>
             </button>
-
-            {/* NO */}
             <button
               onClick={() => handleVote(false)}
               disabled={hasVoted || voting}
               className="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl border-2 py-5 text-center font-bold transition-all active:scale-95 disabled:cursor-default"
               style={{
-                borderColor: hasVoted
-                  ? voted === false ? CHARTREUSE : '#e5e7eb'
-                  : CHARTREUSE,
-                background: hasVoted
-                  ? voted === false ? CHARTREUSE : '#fff'
-                  : '#fff',
-                color: hasVoted
-                  ? voted === false ? '#3a4a00' : '#9ca3af'
-                  : '#3a4a00',
-                boxShadow: !hasVoted ? `0 8px 24px ${CHARTREUSE}88` : 'none',
+                borderColor: hasVoted ? (voted === false ? CHARTREUSE   : '#e5e7eb') : CHARTREUSE,
+                background:  hasVoted ? (voted === false ? CHARTREUSE   : '#fff')    : '#fff',
+                color:       hasVoted ? (voted === false ? '#3a4a00'    : '#9ca3af') : '#3a4a00',
+                boxShadow:  !hasVoted ? `0 8px 24px ${CHARTREUSE}88`  : 'none',
               }}
             >
               <span className="text-2xl">{voted === false ? '✅' : '✕'}</span>
               <span className="text-sm">NO</span>
             </button>
           </div>
-
           {showTally && <VoteTally votes={votes} voted={voted} />}
-
           {!hasVoted && !showTally && (
-            <p className="mt-4 text-center text-xs text-gray-300">
-              Be the first to vote ✨
-            </p>
+            <p className="mt-4 text-center text-xs text-gray-300">Be the first to vote ✨</p>
           )}
         </div>
+
+        {/* ── Divider ─────────────────────────────────────────────────────── */}
+        <div className="mx-5 my-6 h-px bg-gray-100" />
+
+        {/* ── Try-on photos ───────────────────────────────────────────────── */}
+        <TryOnSection itemId={item.id} voterId={voterId} />
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
         <div className="mt-12 flex items-center justify-center gap-1.5">
@@ -343,6 +566,7 @@ export default function SharePage() {
             <span>Make your own wishlist →</span>
           </Link>
         </div>
+
       </div>
     </div>
   )
