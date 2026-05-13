@@ -7,11 +7,11 @@ const links = [
 
 export default function Nav() {
   return (
-    <nav className="sticky top-0 z-50 border-b border-amber-200/60 bg-white/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 border-b border-rose-200/60 bg-white/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-        <NavLink to="/" className="flex items-center gap-2 font-extrabold text-xl tracking-tight text-amber-500">
-          <span className="text-2xl">📦</span>
-          <span>Stash</span>
+        <NavLink to="/" className="flex items-center gap-2 font-extrabold text-xl tracking-tight text-rose-500">
+          <span className="text-2xl">🎀</span>
+          <span style={{ fontFamily: "'DM Serif Display', serif" }}>Stash</span>
         </NavLink>
 
         <ul className="flex items-center gap-1">
@@ -21,10 +21,10 @@ export default function Nav() {
                 to={to}
                 end={to === '/'}
                 className={({ isActive }) =>
-                  `rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${
+                  `rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
                     isActive
-                      ? 'bg-amber-500 text-white shadow-sm'
-                      : 'text-foreground/70 hover:bg-amber-50 hover:text-amber-600'
+                      ? 'bg-rose-500 text-white shadow-sm'
+                      : 'text-foreground/70 hover:bg-rose-50 hover:text-rose-500'
                   }`
                 }
               >
