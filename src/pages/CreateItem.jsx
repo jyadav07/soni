@@ -60,10 +60,16 @@ function SuccessCard({ shareUrl, onReset }) {
 }
 
 export default function CreateItem() {
-  const [form, setForm] = useState({ item_name: '', item_url: '', caption: '' })
+  const [form, setForm] = useState({
+    item_name:  '',
+    item_url:   '',
+    caption:    '',
+    event_name: '',
+  })
+  const [hidePrice, setHidePrice] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState(null)
-  const [shareUrl, setShareUrl] = useState(null)
+  const [error, setError]           = useState(null)
+  const [shareUrl, setShareUrl]     = useState(null)
 
   function handleChange(e) {
     const { name, value } = e.target
@@ -85,11 +91,13 @@ export default function CreateItem() {
     const slug = generateSlug()
     const { data: { user } } = await supabase.auth.getUser()
     const { error: dbError } = await supabase.from('items').insert({
-      item_name: form.item_name.trim(),
-      item_url:  form.item_url.trim(),
-      caption:   form.caption.trim() || null,
+      item_name:  form.item_name.trim(),
+      item_url:   form.item_url.trim(),
+      caption:    form.caption.trim() || null,
+      event_name: form.event_name.trim() || null,
+      hide_price: hidePrice,
       slug,
-      user_id:   user?.id ?? null,
+      user_id:    user?.id ?? null,
     })
 
     if (dbError) {
@@ -103,7 +111,8 @@ export default function CreateItem() {
   }
 
   function handleReset() {
-    setForm({ item_name: '', item_url: '', caption: '' })
+    setForm({ item_name: '', item_url: '', caption: '', event_name: '' })
+    setHidePrice(false)
     setShareUrl(null)
     setError(null)
   }
@@ -175,6 +184,46 @@ export default function CreateItem() {
               rows={3}
               className={`${inputClass} resize-none`}
             />
+          </div>
+
+          {/* ── Event Mode ─────────────────────────────────────────────── */}
+          <div className="rounded border border-stash-silver/60 bg-gray-50 p-4 space-y-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-stash-silver">
+              Event mode
+            </p>
+
+            <div className="space-y-1.5">
+              <label htmlFor="event_name" className="block text-xs font-bold uppercase tracking-wider text-stash-black">
+                What's the occasion?{' '}
+                <span className="font-normal normal-case tracking-normal text-stash-black/40">(optional)</span>
+              </label>
+              <input
+                id="event_name"
+                name="event_name"
+                type="text"
+                value={form.event_name}
+                onChange={handleChange}
+                placeholder="e.g. Mia's birthday party"
+                className={inputClass}
+              />
+            </div>
+
+            <label className="flex cursor-pointer items-center justify-between gap-4">
+              <span className="text-sm text-stash-black">Hide price from friends</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={hidePrice}
+                onClick={() => setHidePrice(v => !v)}
+                className="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none"
+                style={{ background: hidePrice ? '#E8651A' : '#C0C0C0' }}
+              >
+                <span
+                  className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+                  style={{ transform: hidePrice ? 'translateX(20px)' : 'translateX(0)' }}
+                />
+              </button>
+            </label>
           </div>
 
           {error && (
