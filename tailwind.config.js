@@ -14,12 +14,14 @@ export default {
       },
       colors: {
         stash: {
+          white:      '#FFFFFF',
+          silverFlat: '#C0C0C0',
+          silver:     '#C0C0C0',
           orange:     '#E8651A',
           pink:       '#E8608A',
           chartreuse: '#C5D93A',
-          silver:     '#C0C0C0',
+          ink:        '#1A1A1A',
           black:      '#1A1A1A',
-          white:      '#FFFFFF',
         },
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
