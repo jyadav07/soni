@@ -177,6 +177,9 @@ export default function Dashboard() {
   }, [])
 
   async function loadItems() {
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+
     const { data, error: err } = await supabase
       .from('items')
       .select(`
@@ -184,6 +187,7 @@ export default function Dashboard() {
         votes ( vote ),
         tryon_photos ( photo_url )
       `)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
     if (err) {
