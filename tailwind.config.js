@@ -7,12 +7,24 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
       colors: {
+        shoppi: {
+          white:      '#FFFFFF',
+          silver:     '#C0C0C0',
+          orange:     '#E8651A',
+          pink:       '#E8608A',
+          chartreuse: '#C5D93A',
+          ink:        '#1A1A1A',
+        },
+        // legacy aliases so existing stash-* classes don't break during migration
         stash: {
           white:      '#FFFFFF',
           silverFlat: '#C0C0C0',

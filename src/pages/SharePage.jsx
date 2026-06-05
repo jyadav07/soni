@@ -1,69 +1,24 @@
-/*
- * SUPABASE STORAGE SETUP
- * ─────────────────────────────────────────────────────────────────────────────
- * Before try-on photo uploads will work, create the storage bucket manually:
- *
- *  1. Go to your Supabase project → Storage → New bucket
- *  2. Name it exactly: tryon-photos
- *  3. Check "Public bucket" so uploaded images are publicly readable
- *  4. Leave the file size limit at the default (or set to 5 MB)
- *  5. Click "Create bucket"
- *
- * Required tables (run in SQL editor):
- *
- *  create table tryon_photos (
- *    id          uuid primary key default gen_random_uuid(),
- *    item_id     uuid references items(id) on delete cascade,
- *    user_id     uuid,
- *    photo_url   text not null,
- *    created_at  timestamptz default now()
- *  );
- *
- *  create table photo_votes (
- *    id          uuid primary key default gen_random_uuid(),
- *    photo_id    uuid references tryon_photos(id) on delete cascade,
- *    vote        boolean not null,
- *    voter_id    text not null,
- *    created_at  timestamptz default now()
- *  );
- *
- *  create table event_outfits (
- *    id           uuid primary key default gen_random_uuid(),
- *    item_id      uuid references items(id) on delete cascade,
- *    submitter_id text not null,
- *    product_url  text not null,
- *    caption      text,
- *    created_at   timestamptz default now()
- *  );
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
 import { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-
-// ── Brand colors ───────────────────────────────────────────────────────────────
 const ORANGE     = '#E8651A'
 const PINK       = '#E8608A'
 const CHARTREUSE = '#C5D93A'
 const SILVER     = '#C0C0C0'
 const BLACK      = '#1A1A1A'
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
 function getVoterId() {
-  let id = localStorage.getItem('stash_voter_id')
+  let id = localStorage.getItem('shoppi_voter_id')
   if (!id) {
     id = typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
       : Math.random().toString(36).slice(2) + Date.now().toString(36)
-    localStorage.setItem('stash_voter_id', id)
+    localStorage.setItem('shoppi_voter_id', id)
   }
   return id
 }
 
-
-// ── Sub-components ─────────────────────────────────────────────────────────────
 function LoadingState() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
@@ -82,14 +37,14 @@ function LoadingState() {
 function NotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-6 text-center">
-      <h1 className="text-2xl font-extrabold text-stash-black">Link not found</h1>
+      <h1 className="text-[22px] font-medium text-shoppi-ink">Link not found</h1>
       <p className="text-sm" style={{ color: SILVER }}>This wishlist item may have been removed.</p>
       <Link
         to="/"
-        className="mt-2 rounded px-6 py-2.5 text-sm font-bold uppercase tracking-wider text-white"
+        className="mt-2 rounded-full px-6 py-2.5 text-sm font-medium text-white"
         style={{ background: ORANGE }}
       >
-        Go to Stash
+        Go to Shoppi
       </Link>
     </div>
   )
@@ -101,7 +56,7 @@ function VoteTally({ votes, voted }) {
 
   return (
     <div className="mt-5 space-y-3">
-      <p className="text-center text-xs font-bold uppercase tracking-widest" style={{ color: SILVER }}>
+      <p className="text-center text-[11px] font-medium" style={{ color: SILVER }}>
         {total} {total === 1 ? 'vote' : 'votes'}
       </p>
       <div className="flex h-2 overflow-hidden rounded-full" style={{ background: '#f0f0f0' }}>
@@ -110,13 +65,13 @@ function VoteTally({ votes, voted }) {
           style={{ width: `${yesPercent}%`, background: ORANGE }}
         />
       </div>
-      <div className="flex justify-between text-sm font-bold">
+      <div className="flex justify-between text-sm font-medium">
         <span style={{ color: ORANGE }}>♥ {votes.yes} yes</span>
         <span style={{ color: '#6a7a00' }}>{votes.no} no</span>
       </div>
       {voted !== null && (
         <p className="text-center text-xs" style={{ color: SILVER }}>
-          You voted <strong>{voted ? 'YES' : 'NO'}</strong>
+          You voted <strong>{voted ? 'Yes' : 'No'}</strong>
         </p>
       )}
     </div>
@@ -125,7 +80,7 @@ function VoteTally({ votes, voted }) {
 
 // ── Try-on photo components ────────────────────────────────────────────────────
 function PhotoVoteButtons({ photoId, voterId }) {
-  const key = `stash_photo_vote_${photoId}`
+  const key = `shoppi_photo_vote_${photoId}`
   const [votes, setVotes]   = useState({ yes: 0, no: 0 })
   const [voted, setVoted]   = useState(null)
   const [voting, setVoting] = useState(false)
@@ -137,63 +92,45 @@ function PhotoVoteButtons({ photoId, voterId }) {
   }, [photoId])
 
   async function loadVotes() {
-    const { data } = await supabase
-      .from('photo_votes')
-      .select('vote')
-      .eq('photo_id', photoId)
-    if (data) {
-      setVotes({
-        yes: data.filter(v => v.vote === true).length,
-        no:  data.filter(v => v.vote === false).length,
-      })
-    }
+    const { data } = await supabase.from('photo_votes').select('vote').eq('photo_id', photoId)
+    if (data) setVotes({ yes: data.filter(v => v.vote).length, no: data.filter(v => !v.vote).length })
   }
 
   async function handleVote(voteValue) {
     if (voted !== null || voting) return
     setVoting(true)
-    const { error } = await supabase
-      .from('photo_votes')
-      .insert({ photo_id: photoId, vote: voteValue, voter_id: voterId })
+    const { error } = await supabase.from('photo_votes').insert({ photo_id: photoId, vote: voteValue, voter_id: voterId })
     if (!error) {
       localStorage.setItem(key, String(voteValue))
       setVoted(voteValue)
-      setVotes(v => ({
-        yes: voteValue === true  ? v.yes + 1 : v.yes,
-        no:  voteValue === false ? v.no  + 1 : v.no,
-      }))
+      setVotes(v => ({ yes: voteValue ? v.yes + 1 : v.yes, no: !voteValue ? v.no + 1 : v.no }))
     }
     setVoting(false)
   }
 
   const hasVoted = voted !== null
   return (
-    <div className="mt-2 space-y-2">
-      <div className="flex gap-2">
-        <button
-          onClick={() => handleVote(true)}
-          disabled={hasVoted || voting}
-          className="flex flex-1 items-center justify-center gap-1 rounded py-2 text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-80 disabled:cursor-default"
-          style={{
-            background: hasVoted ? (voted === true ? ORANGE : '#e5e5e5') : ORANGE,
-            color:      hasVoted ? (voted === true ? '#fff'  : SILVER)   : '#fff',
-          }}
-        >
-          ♥ {votes.yes}
-        </button>
-        <button
-          onClick={() => handleVote(false)}
-          disabled={hasVoted || voting}
-          className="flex flex-1 items-center justify-center gap-1 rounded border py-2 text-xs font-bold uppercase tracking-wider transition-opacity hover:opacity-80 disabled:cursor-default"
-          style={{
-            borderColor: hasVoted ? (voted === false ? CHARTREUSE : SILVER) : CHARTREUSE,
-            background:  hasVoted ? (voted === false ? CHARTREUSE : '#fff') : CHARTREUSE,
-            color:       hasVoted ? (voted === false ? BLACK      : SILVER)  : BLACK,
-          }}
-        >
-          {votes.no}
-        </button>
-      </div>
+    <div className="mt-2 flex gap-2">
+      <button
+        onClick={() => handleVote(true)}
+        disabled={hasVoted || voting}
+        className="flex flex-1 items-center justify-center gap-1 rounded py-2 text-xs font-medium text-white transition-opacity hover:opacity-80 disabled:cursor-default"
+        style={{ background: hasVoted ? (voted ? ORANGE : '#e5e5e5') : ORANGE, color: hasVoted ? (voted ? '#fff' : SILVER) : '#fff' }}
+      >
+        ♥ {votes.yes}
+      </button>
+      <button
+        onClick={() => handleVote(false)}
+        disabled={hasVoted || voting}
+        className="flex flex-1 items-center justify-center gap-1 rounded border py-2 text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-default"
+        style={{
+          borderColor: hasVoted ? (!voted ? CHARTREUSE : SILVER) : CHARTREUSE,
+          background:  hasVoted ? (!voted ? CHARTREUSE : '#fff') : CHARTREUSE,
+          color:       hasVoted ? (!voted ? BLACK : SILVER) : BLACK,
+        }}
+      >
+        {votes.no}
+      </button>
     </div>
   )
 }
@@ -202,11 +139,7 @@ function PhotoCard({ photo, voterId }) {
   return (
     <div className="overflow-hidden rounded border bg-white" style={{ borderColor: SILVER }}>
       <div className="aspect-square w-full overflow-hidden bg-gray-50">
-        <img
-          src={photo.photo_url}
-          alt="Try-on photo"
-          className="h-full w-full object-cover"
-        />
+        <img src={photo.photo_url} alt="Try-on photo" className="h-full w-full object-cover" />
       </div>
       <div className="p-2">
         <PhotoVoteButtons photoId={photo.id} voterId={voterId} />
@@ -225,11 +158,7 @@ function TryOnSection({ itemId, voterId }) {
   useEffect(() => { loadPhotos() }, [itemId])
 
   async function loadPhotos() {
-    const { data } = await supabase
-      .from('tryon_photos')
-      .select('*')
-      .eq('item_id', itemId)
-      .order('created_at', { ascending: false })
+    const { data } = await supabase.from('tryon_photos').select('*').eq('item_id', itemId).order('created_at', { ascending: false })
     if (data) setPhotos(data)
     setLoading(false)
   }
@@ -244,89 +173,57 @@ function TryOnSection({ itemId, voterId }) {
     const ext  = file.name.split('.').pop().toLowerCase()
     const path = `${itemId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
-    const { error: storageError } = await supabase.storage
-      .from('tryon-photos')
-      .upload(path, file, { cacheControl: '3600', upsert: false })
-
-    if (storageError) {
-      setUploadError(storageError.message)
-      setUploading(false)
-      return
-    }
+    const { error: storageError } = await supabase.storage.from('tryon-photos').upload(path, file, { cacheControl: '3600', upsert: false })
+    if (storageError) { setUploadError(storageError.message); setUploading(false); return }
 
     const { data: { publicUrl } } = supabase.storage.from('tryon-photos').getPublicUrl(path)
+    const { data: photo, error: dbError } = await supabase.from('tryon_photos').insert({ item_id: itemId, photo_url: publicUrl, user_id: null }).select().single()
 
-    const { data: photo, error: dbError } = await supabase
-      .from('tryon_photos')
-      .insert({ item_id: itemId, photo_url: publicUrl, user_id: null })
-      .select()
-      .single()
-
-    if (dbError) {
-      setUploadError(dbError.message)
-    } else if (photo) {
-      setPhotos(prev => [photo, ...prev])
-    }
+    if (dbError) setUploadError(dbError.message)
+    else if (photo) setPhotos(prev => [photo, ...prev])
     setUploading(false)
   }
 
   return (
     <div className="px-5">
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: SILVER }}>
-          Try-on photos
-        </p>
+        <p className="text-[11px] font-medium" style={{ color: SILVER }}>Try-on photos</p>
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="rounded border px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-opacity hover:opacity-70 disabled:opacity-40"
-          style={{ borderColor: PINK, color: PINK, background: 'transparent' }}
+          className="rounded border px-4 py-1.5 text-xs font-medium transition-opacity hover:opacity-70 disabled:opacity-40"
+          style={{ borderColor: PINK, color: PINK }}
         >
           {uploading ? 'Uploading…' : 'Add photo'}
         </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileChange}
-        />
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
       </div>
 
       {uploadError && (
-        <p className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-500">
-          {uploadError}
-        </p>
+        <p className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-500">{uploadError}</p>
       )}
 
       {loading ? (
         <div className="grid grid-cols-2 gap-3">
-          {[0, 1].map(i => (
-            <div key={i} className="aspect-square animate-pulse bg-gray-100" />
-          ))}
+          {[0, 1].map(i => <div key={i} className="aspect-square animate-pulse bg-gray-100" />)}
         </div>
       ) : photos.length === 0 ? (
-        <div
-          className="flex flex-col items-center justify-center gap-2 rounded border border-dashed py-10 text-center"
-          style={{ borderColor: SILVER }}
-        >
-          <p className="text-sm font-semibold" style={{ color: SILVER }}>No try-ons yet</p>
+        <div className="flex flex-col items-center justify-center gap-2 rounded border border-dashed py-10 text-center" style={{ borderColor: SILVER }}>
+          <p className="text-sm font-medium" style={{ color: SILVER }}>No try-ons yet</p>
           <p className="text-xs" style={{ color: SILVER }}>Be the first to upload one</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {photos.map(photo => (
-            <PhotoCard key={photo.id} photo={photo} voterId={voterId} />
-          ))}
+          {photos.map(photo => <PhotoCard key={photo.id} photo={photo} voterId={voterId} />)}
         </div>
       )}
     </div>
   )
 }
 
-// ── Event Mode: outfit submission + cards ──────────────────────────────────────
-function OutfitVoteButtons({ outfitId, voterId, hidePrice }) {
-  const key = `stash_outfit_vote_${outfitId}`
+// ── Event Mode ─────────────────────────────────────────────────────────────────
+function OutfitVoteButtons({ outfitId, voterId }) {
+  const key = `shoppi_outfit_vote_${outfitId}`
   const [votes, setVotes]   = useState({ yes: 0, no: 0 })
   const [voted, setVoted]   = useState(null)
   const [voting, setVoting] = useState(false)
@@ -338,32 +235,18 @@ function OutfitVoteButtons({ outfitId, voterId, hidePrice }) {
   }, [outfitId])
 
   async function loadVotes() {
-    // Outfit votes are stored in the votes table using the outfit id as item_id
-    const { data } = await supabase
-      .from('votes')
-      .select('vote')
-      .eq('item_id', outfitId)
-    if (data) {
-      setVotes({
-        yes: data.filter(v => v.vote === true).length,
-        no:  data.filter(v => v.vote === false).length,
-      })
-    }
+    const { data } = await supabase.from('votes').select('vote').eq('item_id', outfitId)
+    if (data) setVotes({ yes: data.filter(v => v.vote).length, no: data.filter(v => !v.vote).length })
   }
 
   async function handleVote(voteValue) {
     if (voted !== null || voting) return
     setVoting(true)
-    const { error } = await supabase
-      .from('votes')
-      .insert({ item_id: outfitId, vote: voteValue, voter_id: voterId })
+    const { error } = await supabase.from('votes').insert({ item_id: outfitId, vote: voteValue, voter_id: voterId })
     if (!error) {
       localStorage.setItem(key, String(voteValue))
       setVoted(voteValue)
-      setVotes(v => ({
-        yes: voteValue === true  ? v.yes + 1 : v.yes,
-        no:  voteValue === false ? v.no  + 1 : v.no,
-      }))
+      setVotes(v => ({ yes: voteValue ? v.yes + 1 : v.yes, no: !voteValue ? v.no + 1 : v.no }))
     }
     setVoting(false)
   }
@@ -374,22 +257,19 @@ function OutfitVoteButtons({ outfitId, voterId, hidePrice }) {
       <button
         onClick={() => handleVote(true)}
         disabled={hasVoted || voting}
-        className="flex flex-1 items-center justify-center gap-1 rounded py-2 text-xs font-bold uppercase tracking-wider transition-opacity hover:opacity-80 disabled:cursor-default"
-        style={{
-          background: hasVoted ? (voted === true ? ORANGE : '#e5e5e5') : ORANGE,
-          color:      hasVoted ? (voted === true ? '#fff'  : SILVER)   : '#fff',
-        }}
+        className="flex flex-1 items-center justify-center gap-1 rounded py-2 text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-default"
+        style={{ background: hasVoted ? (voted ? ORANGE : '#e5e5e5') : ORANGE, color: hasVoted ? (voted ? '#fff' : SILVER) : '#fff' }}
       >
         ♥ {votes.yes}
       </button>
       <button
         onClick={() => handleVote(false)}
         disabled={hasVoted || voting}
-        className="flex flex-1 items-center justify-center gap-1 rounded py-2 text-xs font-bold uppercase tracking-wider transition-opacity hover:opacity-80 disabled:cursor-default"
+        className="flex flex-1 items-center justify-center gap-1 rounded py-2 text-xs font-medium transition-opacity hover:opacity-80 disabled:cursor-default"
         style={{
-          background:  hasVoted ? (voted === false ? CHARTREUSE : '#fff') : CHARTREUSE,
-          color:       hasVoted ? (voted === false ? BLACK      : SILVER)  : BLACK,
-          border:      `1px solid ${hasVoted ? (voted === false ? CHARTREUSE : SILVER) : CHARTREUSE}`,
+          background:  hasVoted ? (!voted ? CHARTREUSE : '#fff') : CHARTREUSE,
+          color:       hasVoted ? (!voted ? BLACK : SILVER) : BLACK,
+          border:      `1px solid ${hasVoted ? (!voted ? CHARTREUSE : SILVER) : CHARTREUSE}`,
         }}
       >
         {votes.no}
@@ -402,7 +282,7 @@ function OutfitCard({ outfit, voterId }) {
   return (
     <div className="flex flex-col overflow-hidden rounded border bg-white p-3" style={{ borderColor: SILVER }}>
       {outfit.caption && (
-        <p className="mb-2 text-xs italic text-stash-black/60 line-clamp-3">
+        <p className="mb-2 text-xs italic line-clamp-3" style={{ color: '#888' }}>
           "{outfit.caption}"
         </p>
       )}
@@ -410,7 +290,7 @@ function OutfitCard({ outfit, voterId }) {
         href={outfit.product_url}
         target="_blank"
         rel="noopener noreferrer"
-        className="mb-1 truncate text-xs font-bold transition-opacity hover:opacity-70"
+        className="mb-1 truncate text-xs font-medium transition-opacity hover:opacity-70"
         style={{ color: ORANGE }}
       >
         View outfit
@@ -420,22 +300,18 @@ function OutfitCard({ outfit, voterId }) {
   )
 }
 
-function EventOutfitSection({ itemId, voterId, eventName, hidePrice }) {
-  const [outfits, setOutfits]     = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [form, setForm]           = useState({ product_url: '', caption: '' })
-  const [submitting, setSubmitting] = useState(false)
+function EventOutfitSection({ itemId, voterId, eventName }) {
+  const [outfits, setOutfits]         = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [form, setForm]               = useState({ product_url: '', caption: '' })
+  const [submitting, setSubmitting]   = useState(false)
   const [submitError, setSubmitError] = useState(null)
-  const [submitted, setSubmitted] = useState(false)
+  const [submitted, setSubmitted]     = useState(false)
 
   useEffect(() => { loadOutfits() }, [itemId])
 
   async function loadOutfits() {
-    const { data } = await supabase
-      .from('event_outfits')
-      .select('*')
-      .eq('item_id', itemId)
-      .order('created_at', { ascending: false })
+    const { data } = await supabase.from('event_outfits').select('*').eq('item_id', itemId).order('created_at', { ascending: false })
     if (data) setOutfits(data)
     setLoading(false)
   }
@@ -448,18 +324,11 @@ function EventOutfitSection({ itemId, voterId, eventName, hidePrice }) {
 
     const { data: outfit, error } = await supabase
       .from('event_outfits')
-      .insert({
-        item_id:      itemId,
-        submitter_id: voterId,
-        product_url:  form.product_url.trim(),
-        caption:      form.caption.trim() || null,
-      })
-      .select()
-      .single()
+      .insert({ item_id: itemId, submitter_id: voterId, product_url: form.product_url.trim(), caption: form.caption.trim() || null })
+      .select().single()
 
-    if (error) {
-      setSubmitError(error.message)
-    } else {
+    if (error) setSubmitError(error.message)
+    else {
       setOutfits(prev => [outfit, ...prev])
       setForm({ product_url: '', caption: '' })
       setSubmitted(true)
@@ -468,32 +337,19 @@ function EventOutfitSection({ itemId, voterId, eventName, hidePrice }) {
     setSubmitting(false)
   }
 
-  const inputClass = 'w-full rounded border border-stash-silver bg-white px-3 py-2.5 text-sm text-stash-black placeholder:text-stash-black/30 outline-none transition focus:border-stash-orange'
+  const inputClass = 'w-full rounded border bg-white px-3 py-2.5 text-sm text-shoppi-ink placeholder:text-[#999] outline-none transition focus:border-shoppi-orange'
 
   return (
     <div className="px-5">
-      {/* Section header */}
       <div className="mb-5 text-center">
-        <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: SILVER }}>
-          Group chat energy
-        </p>
-        <h2
-          className="text-2xl text-stash-black"
-          style={{ fontFamily: "'DM Serif Display', serif" }}
-        >
-          What are you wearing?
-        </h2>
-        <p className="mt-1 text-sm" style={{ color: `${BLACK}80` }}>
-          Drop a link — everyone votes.
-        </p>
+        <p className="text-[11px] font-medium mb-1" style={{ color: SILVER }}>Group chat energy</p>
+        <h2 className="text-[22px] font-medium text-shoppi-ink">What are you wearing?</h2>
+        <p className="mt-1 text-sm" style={{ color: '#888' }}>Drop a link — everyone votes.</p>
       </div>
 
-      {/* Submit form */}
-      <form onSubmit={handleSubmit} className="mb-6 space-y-3 rounded border border-stash-silver bg-gray-50 p-4">
+      <form onSubmit={handleSubmit} className="mb-6 space-y-3 rounded border p-4" style={{ borderColor: SILVER, background: '#fafafa' }}>
         <div className="space-y-1">
-          <label className="block text-xs font-bold uppercase tracking-wider text-stash-black">
-            Your outfit link <span style={{ color: ORANGE }}>*</span>
-          </label>
+          <label className="block text-sm font-medium text-shoppi-ink">Your outfit link</label>
           <input
             type="url"
             value={form.product_url}
@@ -501,61 +357,45 @@ function EventOutfitSection({ itemId, voterId, eventName, hidePrice }) {
             placeholder="https://…"
             required
             className={inputClass}
+            style={{ borderColor: SILVER }}
           />
         </div>
-
         <div className="space-y-1">
-          <label className="block text-xs font-bold uppercase tracking-wider text-stash-black">
-            Note{' '}
-            <span className="font-normal normal-case tracking-normal text-stash-black/40">(optional)</span>
+          <label className="block text-sm font-medium text-shoppi-ink">
+            Note <span className="font-normal" style={{ color: '#999' }}>(optional)</span>
           </label>
           <input
             type="text"
             value={form.caption}
             onChange={e => setForm(f => ({ ...f, caption: e.target.value }))}
-            placeholder="thinking this one?? help"
+            placeholder="Thinking this one?? help"
             className={inputClass}
+            style={{ borderColor: SILVER }}
           />
         </div>
-
-        {submitError && (
-          <p className="text-xs text-red-500">{submitError}</p>
-        )}
-
+        {submitError && <p className="text-xs text-red-500">{submitError}</p>}
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded py-3 text-sm font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-80 disabled:opacity-50"
+          className="w-full rounded-full py-3 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-50"
           style={{ background: PINK }}
         >
           {submitted ? 'Added!' : submitting ? 'Adding…' : 'Share your outfit'}
         </button>
       </form>
 
-      {/* Outfit cards */}
       {loading ? (
         <div className="grid grid-cols-2 gap-3">
-          {[0, 1].map(i => (
-            <div key={i} className="aspect-square animate-pulse rounded bg-gray-100" />
-          ))}
+          {[0, 1].map(i => <div key={i} className="aspect-square animate-pulse rounded bg-gray-100" />)}
         </div>
       ) : outfits.length === 0 ? (
-        <div
-          className="flex flex-col items-center justify-center gap-2 rounded border border-dashed py-10 text-center"
-          style={{ borderColor: SILVER }}
-        >
-          <p className="text-sm font-semibold" style={{ color: SILVER }}>No outfits yet</p>
+        <div className="flex flex-col items-center justify-center gap-2 rounded border border-dashed py-10 text-center" style={{ borderColor: SILVER }}>
+          <p className="text-sm font-medium" style={{ color: SILVER }}>No outfits yet</p>
           <p className="text-xs" style={{ color: SILVER }}>Be the first to share one</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {outfits.map(outfit => (
-            <OutfitCard
-              key={outfit.id}
-              outfit={outfit}
-              voterId={voterId}
-            />
-          ))}
+          {outfits.map(outfit => <OutfitCard key={outfit.id} outfit={outfit} voterId={voterId} />)}
         </div>
       )}
     </div>
@@ -565,12 +405,12 @@ function EventOutfitSection({ itemId, voterId, eventName, hidePrice }) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function SharePage() {
   const { slug } = useParams()
-  const [item, setItem]           = useState(null)
-  const [votes, setVotes]         = useState({ yes: 0, no: 0 })
-  const [voted, setVoted]         = useState(null)
-  const [voting, setVoting]       = useState(false)
-  const [loading, setLoading]     = useState(true)
-  const [notFound, setNotFound]   = useState(false)
+  const [item, setItem]       = useState(null)
+  const [votes, setVotes]     = useState({ yes: 0, no: 0 })
+  const [voted, setVoted]     = useState(null)
+  const [voting, setVoting]   = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
 
   const voterId = getVoterId()
 
@@ -580,59 +420,32 @@ export default function SharePage() {
   }, [slug])
 
   async function loadPage() {
-    const { data, error } = await supabase
-      .from('items')
-      .select('*')
-      .eq('slug', slug)
-      .single()
-
-    if (error || !data) {
-      setNotFound(true)
-      setLoading(false)
-      return
-    }
+    const { data, error } = await supabase.from('items').select('*').eq('slug', slug).single()
+    if (error || !data) { setNotFound(true); setLoading(false); return }
 
     setItem(data)
     setLoading(false)
 
-    supabase
-      .from('items')
-      .update({ view_count: (data.view_count ?? 0) + 1 })
-      .eq('id', data.id)
-      .then(() => {})
+    supabase.from('items').update({ view_count: (data.view_count ?? 0) + 1 }).eq('id', data.id).then(() => {})
 
     await loadVotes(data.id)
-
-    const prior = localStorage.getItem(`stash_vote_${data.id}`)
+    const prior = localStorage.getItem(`shoppi_vote_${data.id}`)
     if (prior !== null) setVoted(prior === 'true')
   }
 
   async function loadVotes(itemId) {
-    const { data } = await supabase
-      .from('votes')
-      .select('vote')
-      .eq('item_id', itemId)
-    if (data) {
-      setVotes({
-        yes: data.filter(v => v.vote === true).length,
-        no:  data.filter(v => v.vote === false).length,
-      })
-    }
+    const { data } = await supabase.from('votes').select('vote').eq('item_id', itemId)
+    if (data) setVotes({ yes: data.filter(v => v.vote).length, no: data.filter(v => !v.vote).length })
   }
 
   async function handleVote(voteValue) {
     if (voted !== null || voting || !supabase || !item) return
     setVoting(true)
-    const { error } = await supabase
-      .from('votes')
-      .insert({ item_id: item.id, vote: voteValue, voter_id: voterId })
+    const { error } = await supabase.from('votes').insert({ item_id: item.id, vote: voteValue, voter_id: voterId })
     if (!error) {
-      localStorage.setItem(`stash_vote_${item.id}`, String(voteValue))
+      localStorage.setItem(`shoppi_vote_${item.id}`, String(voteValue))
       setVoted(voteValue)
-      setVotes(v => ({
-        yes: voteValue === true  ? v.yes + 1 : v.yes,
-        no:  voteValue === false ? v.no  + 1 : v.no,
-      }))
+      setVotes(v => ({ yes: voteValue ? v.yes + 1 : v.yes, no: !voteValue ? v.no + 1 : v.no }))
     }
     setVoting(false)
   }
@@ -644,45 +457,37 @@ export default function SharePage() {
   const showTally = hasVoted || (votes.yes + votes.no) > 0
   const isEvent   = !!item.event_name
 
-  const displayCaption = item.caption
-
   return (
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-sm pb-16">
 
-        {/* ── Event banner ────────────────────────────────────────────────── */}
+        {/* Event banner */}
         {isEvent && (
           <div className="px-5 pt-5 pb-1">
             <div
               className="inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-center"
-              style={{ borderColor: ORANGE, background: '#fff' }}
+              style={{ borderColor: PINK, background: '#fff' }}
             >
-              <span className="text-xs font-bold uppercase tracking-widest text-stash-black">
-                {item.event_name}
-              </span>
+              <span className="text-xs font-medium text-shoppi-ink">{item.event_name}</span>
             </div>
           </div>
         )}
 
-        {/* ── Item details ─────────────────────────────────────────────────── */}
+        {/* Item details */}
         <div className="px-5 pt-6">
-          <h1
-            className="text-4xl leading-tight"
-            style={{ fontFamily: "'DM Serif Display', serif", color: BLACK }}
-          >
+          <h1 className="text-[28px] font-medium leading-tight text-shoppi-ink">
             {item.item_name}
           </h1>
 
-          {/* Event context line */}
           {isEvent && (
             <p className="mt-2 text-sm font-medium" style={{ color: PINK }}>
-              for {item.event_name} — would you wear this or leave it?
+              For {item.event_name} — would you wear this or leave it?
             </p>
           )}
 
-          {displayCaption && (
-            <p className="mt-3 text-base leading-relaxed" style={{ color: `${BLACK}99` }}>
-              "{displayCaption}"
+          {item.caption && (
+            <p className="mt-3 text-base leading-relaxed" style={{ color: '#888' }}>
+              "{item.caption}"
             </p>
           )}
 
@@ -690,7 +495,7 @@ export default function SharePage() {
             href={item.item_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold transition-opacity hover:opacity-70"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium transition-opacity hover:opacity-70"
             style={{ color: ORANGE }}
           >
             View on store
@@ -700,39 +505,36 @@ export default function SharePage() {
           </a>
         </div>
 
-        {/* ── Divider ──────────────────────────────────────────────────────── */}
         <div className="mx-5 my-6 h-px" style={{ background: SILVER }} />
 
-        {/* ── Vote section ─────────────────────────────────────────────────── */}
+        {/* Vote section */}
         <div className="px-5">
-          <p className="mb-4 text-center text-xs font-bold uppercase tracking-widest" style={{ color: SILVER }}>
+          <p className="mb-4 text-center text-[11px] font-medium" style={{ color: SILVER }}>
             Should they get it?
           </p>
 
           <div className="flex gap-3">
-            {/* YES */}
             <button
               onClick={() => handleVote(true)}
               disabled={hasVoted || voting}
-              className="flex flex-1 flex-col items-center justify-center gap-1 rounded py-5 text-center font-bold uppercase tracking-wider transition-opacity active:scale-95 disabled:cursor-default hover:opacity-80"
+              className="flex flex-1 flex-col items-center justify-center gap-1 rounded py-5 text-center font-medium transition-opacity active:scale-95 disabled:cursor-default hover:opacity-80"
               style={{
-                background: hasVoted ? (voted === true  ? ORANGE    : '#f3f4f6') : ORANGE,
-                color:      hasVoted ? (voted === true  ? '#fff'    : SILVER)    : '#fff',
+                background: hasVoted ? (voted ? ORANGE : '#f3f4f6') : ORANGE,
+                color:      hasVoted ? (voted ? '#fff' : SILVER) : '#fff',
               }}
             >
               <span className="text-xl">♥</span>
               <span className="text-xs">Yes</span>
             </button>
 
-            {/* NO */}
             <button
               onClick={() => handleVote(false)}
               disabled={hasVoted || voting}
-              className="flex flex-1 flex-col items-center justify-center gap-1 rounded border-2 py-5 text-center font-bold uppercase tracking-wider transition-opacity active:scale-95 disabled:cursor-default hover:opacity-80"
+              className="flex flex-1 flex-col items-center justify-center gap-1 rounded border-2 py-5 text-center font-medium transition-opacity active:scale-95 disabled:cursor-default hover:opacity-80"
               style={{
-                borderColor: hasVoted ? (voted === false ? CHARTREUSE : SILVER)     : CHARTREUSE,
-                background:  hasVoted ? (voted === false ? CHARTREUSE : '#fff')     : CHARTREUSE,
-                color:       hasVoted ? (voted === false ? BLACK      : SILVER)     : BLACK,
+                borderColor: hasVoted ? (!voted ? CHARTREUSE : SILVER) : CHARTREUSE,
+                background:  hasVoted ? (!voted ? CHARTREUSE : '#fff') : CHARTREUSE,
+                color:       hasVoted ? (!voted ? BLACK : SILVER) : BLACK,
               }}
             >
               <span className="text-xl">—</span>
@@ -742,35 +544,24 @@ export default function SharePage() {
 
           {showTally && <VoteTally votes={votes} voted={voted} />}
           {!hasVoted && !showTally && (
-            <p className="mt-4 text-center text-xs" style={{ color: SILVER }}>
-              Be the first to vote
-            </p>
+            <p className="mt-4 text-center text-xs" style={{ color: SILVER }}>Be the first to vote</p>
           )}
         </div>
 
-        {/* ── Divider ──────────────────────────────────────────────────────── */}
         <div className="mx-5 my-6 h-px" style={{ background: SILVER }} />
 
-        {/* ── Event outfit section OR try-on photos ───────────────────────── */}
-        {isEvent ? (
-          <EventOutfitSection
-            itemId={item.id}
-            voterId={voterId}
-            eventName={item.event_name}
-            hidePrice={item.hide_price}
-          />
-        ) : (
-          <TryOnSection itemId={item.id} voterId={voterId} />
-        )}
+        {isEvent
+          ? <EventOutfitSection itemId={item.id} voterId={voterId} eventName={item.event_name} />
+          : <TryOnSection itemId={item.id} voterId={voterId} />
+        }
 
-        {/* ── Footer ───────────────────────────────────────────────────────── */}
         <div className="mt-12 flex items-center justify-center">
           <Link
             to="/"
-            className="text-xs font-bold uppercase tracking-widest transition-opacity hover:opacity-60"
+            className="text-xs font-medium transition-opacity hover:opacity-60"
             style={{ color: SILVER }}
           >
-            Make your own — Stash
+            Make your own — Shoppi
           </Link>
         </div>
 

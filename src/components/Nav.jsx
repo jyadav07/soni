@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-
-const navLinks = [
-  { to: '/', label: 'Home' },
-  { to: '/dashboard', label: 'Dashboard' },
-]
 
 export default function Nav() {
   const navigate = useNavigate()
@@ -24,42 +19,36 @@ export default function Nav() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-stash-silver bg-white">
+    <nav className="sticky top-0 z-50 border-b bg-white" style={{ borderColor: '#C0C0C0' }}>
       <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-        <NavLink
+        <Link
           to="/"
-          className="text-xl font-extrabold uppercase tracking-widest text-stash-black"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '0.15em' }}
+          className="text-[18px] font-medium text-shoppi-ink"
         >
-          Stash
-        </NavLink>
+          Shoppi
+        </Link>
 
-        <div className="flex items-center gap-1">
-          <ul className="flex items-center gap-1">
-            {navLinks.map(({ to, label }) => (
-              <li key={to}>
-                <NavLink
-                  to={to}
-                  end={to === '/'}
-                  className={({ isActive }) =>
-                    `rounded px-4 py-1.5 text-sm font-semibold transition-colors ${
-                      isActive
-                        ? 'bg-stash-orange text-white'
-                        : 'text-stash-black hover:text-stash-orange'
-                    }`
-                  }
-                >
-                  {label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-
+        <div className="flex items-center gap-3">
+          {session && (
+            <Link
+              to="/dashboard"
+              className="text-sm text-shoppi-ink hover:text-shoppi-orange transition-colors"
+            >
+              Dashboard
+            </Link>
+          )}
+          <Link
+            to="/create"
+            className="rounded-full px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-80"
+            style={{ background: '#E8651A' }}
+          >
+            Create link
+          </Link>
           {session && (
             <button
               onClick={handleSignOut}
-              className="ml-3 rounded border px-4 py-1.5 text-sm font-semibold transition-colors"
-              style={{ borderColor: '#E8608A', color: '#E8608A' }}
+              className="text-sm transition-colors"
+              style={{ color: '#C0C0C0' }}
             >
               Sign out
             </button>
