@@ -83,12 +83,13 @@ export default function CreateItem() {
     }
 
     const slug = generateSlug()
+    const { data: { user } } = await supabase.auth.getUser()
     const { error: dbError } = await supabase.from('items').insert({
       item_name: form.item_name.trim(),
       item_url:  form.item_url.trim(),
       caption:   form.caption.trim() || null,
       slug,
-      user_id:   null,
+      user_id:   user?.id ?? null,
     })
 
     if (dbError) {
