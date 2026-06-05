@@ -42,6 +42,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+
 // ── Brand colors ───────────────────────────────────────────────────────────────
 const ORANGE     = '#E8651A'
 const PINK       = '#E8608A'
@@ -61,33 +62,12 @@ function getVoterId() {
   return id
 }
 
-// Strip price strings like $99, £1,200, €45.99, USD 80 from any text
-const PRICE_RE = /(\$|£|€|USD|GBP|EUR)\s?[\d,]+(\.\d{1,2})?/gi
-
-function stripPrice(text) {
-  if (!text) return text
-  return text.replace(PRICE_RE, '').replace(/\s{2,}/g, ' ').trim()
-}
-
-async function fetchOgData(url) {
-  try {
-    const res = await fetch(
-      `https://api.microlink.io/?url=${encodeURIComponent(url)}`,
-      { signal: AbortSignal.timeout(6000) }
-    )
-    const json = await res.json()
-    return json?.data ?? null
-  } catch {
-    return null
-  }
-}
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 function LoadingState() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
       <div className="w-full max-w-sm space-y-4">
-        <div className="aspect-square w-full animate-pulse bg-gray-100" />
         <div className="h-8 w-3/4 animate-pulse rounded bg-gray-100" />
         <div className="h-4 w-full animate-pulse rounded bg-gray-100" />
         <div className="mt-6 flex gap-3">
@@ -418,65 +398,24 @@ function OutfitVoteButtons({ outfitId, voterId, hidePrice }) {
   )
 }
 
-function OutfitCard({ outfit, voterId, hidePrice }) {
-  const [ogImage, setOgImage]     = useState(null)
-  const [ogTitle, setOgTitle]     = useState(null)
-  const [ogLoading, setOgLoading] = useState(true)
-
-  useEffect(() => {
-    fetchOgData(outfit.product_url).then(data => {
-      if (data) {
-        setOgImage(data.image?.url ?? null)
-        const raw = data.title ?? data.description ?? null
-        setOgTitle(hidePrice && raw ? stripPrice(raw) : raw)
-      }
-      setOgLoading(false)
-    })
-  }, [outfit.product_url, hidePrice])
-
+function OutfitCard({ outfit, voterId }) {
   return (
-    <div className="flex flex-col overflow-hidden rounded border bg-white" style={{ borderColor: SILVER }}>
-      {/* Image */}
-      <div className="aspect-square w-full overflow-hidden bg-gray-50">
-        {ogLoading ? (
-          <div className="h-full w-full animate-pulse bg-gray-100" />
-        ) : ogImage ? (
-          <img src={ogImage} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <span className="text-xs" style={{ color: SILVER }}>No image</span>
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-1 flex-col p-3">
-        {/* Title from OG */}
-        {ogTitle && (
-          <p className="mb-1 line-clamp-2 text-xs font-semibold text-stash-black leading-snug">
-            {ogTitle}
-          </p>
-        )}
-
-        {/* User caption */}
-        {outfit.caption && (
-          <p className="mb-1 text-xs text-stash-black/60 italic line-clamp-2">
-            "{outfit.caption}"
-          </p>
-        )}
-
-        {/* Link */}
-        <a
-          href={outfit.product_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-auto text-xs font-bold transition-opacity hover:opacity-70 truncate"
-          style={{ color: ORANGE }}
-        >
-          View
-        </a>
-
-        <OutfitVoteButtons outfitId={outfit.id} voterId={voterId} hidePrice={hidePrice} />
-      </div>
+    <div className="flex flex-col overflow-hidden rounded border bg-white p-3" style={{ borderColor: SILVER }}>
+      {outfit.caption && (
+        <p className="mb-2 text-xs italic text-stash-black/60 line-clamp-3">
+          "{outfit.caption}"
+        </p>
+      )}
+      <a
+        href={outfit.product_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mb-1 truncate text-xs font-bold transition-opacity hover:opacity-70"
+        style={{ color: ORANGE }}
+      >
+        View outfit
+      </a>
+      <OutfitVoteButtons outfitId={outfit.id} voterId={voterId} />
     </div>
   )
 }
@@ -615,7 +554,6 @@ function EventOutfitSection({ itemId, voterId, eventName, hidePrice }) {
               key={outfit.id}
               outfit={outfit}
               voterId={voterId}
-              hidePrice={hidePrice}
             />
           ))}
         </div>
@@ -628,8 +566,6 @@ function EventOutfitSection({ itemId, voterId, eventName, hidePrice }) {
 export default function SharePage() {
   const { slug } = useParams()
   const [item, setItem]           = useState(null)
-  const [ogImage, setOgImage]     = useState(null)
-  const [ogLoading, setOgLoading] = useState(true)
   const [votes, setVotes]         = useState({ yes: 0, no: 0 })
   const [voted, setVoted]         = useState(null)
   const [voting, setVoting]       = useState(false)
@@ -664,11 +600,6 @@ export default function SharePage() {
       .update({ view_count: (data.view_count ?? 0) + 1 })
       .eq('id', data.id)
       .then(() => {})
-
-    fetchOgData(data.item_url).then(ogData => {
-      setOgImage(ogData?.image?.url ?? null)
-      setOgLoading(false)
-    })
 
     await loadVotes(data.id)
 
@@ -713,10 +644,7 @@ export default function SharePage() {
   const showTally = hasVoted || (votes.yes + votes.no) > 0
   const isEvent   = !!item.event_name
 
-  // Caption with price optionally stripped
-  const displayCaption = item.hide_price && item.caption
-    ? stripPrice(item.caption)
-    : item.caption
+  const displayCaption = item.caption
 
   return (
     <div className="min-h-screen bg-white">
@@ -736,34 +664,8 @@ export default function SharePage() {
           </div>
         )}
 
-        {/* ── Product image ────────────────────────────────────────────────── */}
-        <div className="relative aspect-square w-full overflow-hidden bg-gray-50">
-          {ogLoading ? (
-            <div className="h-full w-full animate-pulse bg-gray-100" />
-          ) : ogImage ? (
-            <img src={ogImage} alt={item.item_name} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gray-50">
-              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: SILVER }}>
-                No image
-              </span>
-            </div>
-          )}
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
-
-          {/* Wishlist / Event badge */}
-          <div className="absolute left-4 top-4">
-            <span
-              className="rounded px-3 py-1 text-xs font-bold uppercase tracking-wider text-white"
-              style={{ background: PINK }}
-            >
-              {isEvent ? 'Event' : 'Wishlist'}
-            </span>
-          </div>
-        </div>
-
         {/* ── Item details ─────────────────────────────────────────────────── */}
-        <div className="px-5 pt-3">
+        <div className="px-5 pt-6">
           <h1
             className="text-4xl leading-tight"
             style={{ fontFamily: "'DM Serif Display', serif", color: BLACK }}
